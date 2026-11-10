@@ -214,6 +214,10 @@ pub struct RenderSettings {
     /// The height of the viewport. If this is set to `None`, the height will be chosen
     /// automatically based on the scale factor and the dimensions of the PDF.
     pub height: Option<u16>,
+    /// Where the viewport's top-left corner is on the scaled page, in pixels, so that
+    /// a region of the page can be rendered (with `width` and `height`) at a scale the
+    /// whole page couldn't be.
+    pub origin: (f32, f32),
     /// The background color. Determines the color of the base
     /// rectangle during rendering to a pixmap.
     pub bg_color: AlphaColor<Srgb>,
@@ -226,6 +230,7 @@ impl Default for RenderSettings {
             y_scale: 1.0,
             width: None,
             height: None,
+            origin: (0.0, 0.0),
             bg_color: TRANSPARENT,
         }
     }
@@ -241,7 +246,9 @@ pub fn render<'a>(
     let (x_scale, y_scale) = (render_settings.x_scale, render_settings.y_scale);
     let (width, height) = page.render_dimensions();
     let (scaled_width, scaled_height) = ((width * x_scale) as f64, (height * y_scale) as f64);
-    let initial_transform = Affine::scale_non_uniform(x_scale as f64, y_scale as f64)
+    let (x_origin, y_origin) = render_settings.origin;
+    let initial_transform = Affine::translate((-x_origin as f64, -y_origin as f64))
+        * Affine::scale_non_uniform(x_scale as f64, y_scale as f64)
         * page.initial_transform(true).to_kurbo();
 
     let (pix_width, pix_height) = (
