@@ -23,6 +23,7 @@ pub(crate) fn begin_glyph_run(ctx: &mut Context<'_>) {
     let ts = &ctx.get().text_state;
     ctx.run_state = Some(TextRunState {
         text_matrix: ts.text_matrix,
+        line_matrix: ts.text_line_matrix,
         font_size: ts.font_size,
         char_spacing: ts.char_space,
         word_spacing: ts.word_space,
@@ -101,6 +102,7 @@ pub(crate) fn show_glyph_run<'a>(ctx: &mut Context<'a>, device: &mut impl Device
             glyphs: &ctx.glyph_scratch,
             state: ctx.run_state.unwrap_or(TextRunState {
                 text_matrix: Affine::IDENTITY,
+                line_matrix: Affine::IDENTITY,
                 font_size: 1.0,
                 char_spacing: 0.0,
                 word_spacing: 0.0,

@@ -119,6 +119,20 @@ fn reports_each_run_s_text_state_and_adjustments() {
 }
 
 #[test]
+fn tells_a_continuing_run_by_its_line_matrix() {
+    let device = record(page_with(
+        "BT /F1 10 Tf 20 30 Td (A) Tj (B) Tj 5 0 Td (C) Tj ET",
+        "",
+    ));
+    let continues: Vec<bool> = device
+        .runs
+        .iter()
+        .map(|(s, _)| s.text_matrix != s.line_matrix)
+        .collect();
+    assert_eq!(continues, [false, true, false]);
+}
+
+#[test]
 fn passes_marked_content_s_properties() {
     let device = record(page_with(
         "/Span << /ActualText (fi) /MCID 3 >> BDC BT /F1 12 Tf (x) Tj ET EMC \

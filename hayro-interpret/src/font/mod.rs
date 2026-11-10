@@ -162,6 +162,10 @@ pub struct TextRunState {
     /// The text matrix (`Tm`, as moved by `Td` and earlier glyphs) at the
     /// start of the run, without the CTM.
     pub text_matrix: Affine,
+    /// The text line matrix (`Tm`, as moved by `Td`, but not by glyphs). It
+    /// equals `text_matrix` unless the run continues from an earlier
+    /// text-showing operator's pen, with no positioning between them.
+    pub line_matrix: Affine,
     /// `Tf`'s size.
     pub font_size: f32,
     /// `Tc`.
