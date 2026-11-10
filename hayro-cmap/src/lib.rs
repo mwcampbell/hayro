@@ -468,6 +468,32 @@ impl CMap {
         self.lookup_bf_string_inner(code, true)
     }
 
+    /// Find the lowest character code whose bf string is the single
+    /// character `c`: the reverse of [`CMap::lookup_bf_string`] for one
+    /// character, as text extractors use it to ask whether a font can
+    /// encode a character (`ToUnicode` maps are many-to-one, so the code
+    /// found is the lowest of those mapping to `c`).
+    ///
+    /// Returns `None` if no code maps to `c` alone.
+    pub fn reverse_lookup_bf_char(&self, c: char) -> Option<u32> {
+        let mut units = [0_u16; 2];
+        let units = c.encode_utf16(&mut units);
+        let (last, prefix) = units.split_last()?;
+        let found = self
+            .bf_entries
+            .iter()
+            .filter_map(|entry| {
+                let (base_last, base_prefix) = entry.dst_base.split_last()?;
+                if base_prefix != prefix || last < base_last {
+                    return None;
+                }
+                let offset = u32::from(last - base_last);
+                (offset <= entry.range.end - entry.range.start).then(|| entry.range.start + offset)
+            })
+            .min();
+        found.or_else(|| self.base.as_ref()?.reverse_lookup_bf_char(c))
+    }
+
     fn lookup_bf_string_inner(&self, code: u32, recurse: bool) -> Option<BfString> {
         if let Some(entry) = find_in_ranges(&self.bf_entries, code) {
             let offset = u16::try_from(code - entry.range.start).ok()?;
@@ -1121,6 +1147,29 @@ endbfrange
         assert_eq!(cmap.lookup_bf_string(0x0001), Some(BfString::Char('B')));
         assert_eq!(cmap.lookup_bf_string(0x0004), Some(BfString::Char('E')));
         assert_eq!(cmap.lookup_bf_string(0x0005), None);
+    }
+
+    #[test]
+    fn bf_reverse_lookup() {
+        let cmap = parse_with_preamble(
+            br#"
+3 beginbfchar
+<0041> <0048>
+<0010> <0048>
+<3A51> <D840DC3E>
+endbfchar
+1 beginbfrange
+<0050> <0054> <0061>
+endbfrange
+"#,
+        );
+
+        // The lowest of the codes mapping to it.
+        assert_eq!(cmap.reverse_lookup_bf_char('H'), Some(0x0010));
+        assert_eq!(cmap.reverse_lookup_bf_char('c'), Some(0x0052));
+        assert_eq!(cmap.reverse_lookup_bf_char('\u{2003E}'), Some(0x3A51));
+        assert_eq!(cmap.reverse_lookup_bf_char('f'), None);
+        assert_eq!(cmap.reverse_lookup_bf_char('z'), None);
     }
 
     #[test]
