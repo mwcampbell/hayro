@@ -510,7 +510,13 @@ pub fn interpret<'a>(
                     context.ocg_state.begin_marked_content();
                 }
 
-                device.begin_marked_content(bdc.0, mcid);
+                let properties = dict_or_stream(bdc.1)
+                    .map(|(props, _)| props.clone())
+                    .or_else(|| {
+                        let name = bdc.1.clone().into_name()?;
+                        resources.properties.get::<Dict<'_>>(name)
+                    });
+                device.begin_marked_content_with_properties(bdc.0, mcid, properties.as_ref());
             }
             TypedInstruction::MarkedContentPointWithProperties(_) => {}
             TypedInstruction::EndMarkedContent(_) => {
@@ -520,7 +526,7 @@ pub fn interpret<'a>(
             TypedInstruction::MarkedContentPoint(_) => {}
             TypedInstruction::BeginMarkedContent(bmc) => {
                 context.ocg_state.begin_marked_content();
-                device.begin_marked_content(bmc.0, None);
+                device.begin_marked_content_with_properties(bmc.0, None, None);
             }
             TypedInstruction::BeginText(_) => {
                 context.get_mut().text_state.text_matrix = Affine::IDENTITY;
