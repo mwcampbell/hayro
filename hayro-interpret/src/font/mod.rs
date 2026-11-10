@@ -313,7 +313,10 @@ impl OutlineGlyph {
 
     /// The character code the glyph's font has for `c`, as `PDFium`'s text
     /// extraction finds it: from the `ToUnicode` map (the lowest code it
-    /// gives `c` alone), or, for a simple font, its encoding.
+    /// gives `c` alone), or else, for a simple font, from its encoding's
+    /// glyph names (without the `ToUnicode` map, which can be wrong where
+    /// `/ActualText` corrects it), and for a CID font, 0. `None` when a
+    /// simple font has no code for `c`.
     pub fn char_code_for_unicode(&self, c: char) -> Option<u32> {
         self.font.char_code_for_unicode(c)
     }

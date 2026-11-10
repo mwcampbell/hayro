@@ -202,13 +202,7 @@ impl TrueTypeFont {
             return Some(c);
         }
 
-        match &self.kind {
-            Kind::Embedded(e) => e
-                .code_to_name(code as u8)
-                .and_then(glyph_name_to_unicode)
-                .map(BfString::Char),
-            Kind::Standard(s) => s.char_code_to_unicode(code as u8).map(BfString::Char),
-        }
+        self.encoding_unicode(code as u8).map(BfString::Char)
 
         // TODO: The test PDFs below fail (but mutool can render them correctly).
         // There is likely some other strategy that requires processing the font tables
@@ -216,17 +210,29 @@ impl TrueTypeFont {
         // hayro-tests/pdfs/custom/font_truetype_6.pdf
     }
 
+    /// The Unicode of a code's glyph name in the font's encoding, without
+    /// the `ToUnicode` map.
+    fn encoding_unicode(&self, code: u8) -> Option<char> {
+        match &self.kind {
+            Kind::Embedded(e) => e.code_to_name(code).and_then(glyph_name_to_unicode),
+            Kind::Standard(s) => s.char_code_to_unicode(code),
+        }
+    }
+
     /// The character code `PDFium`'s text extraction would find for `c`
     /// (`CPDF_SimpleFont::CharCodeFromUnicode`): the lowest code the
     /// `ToUnicode` map gives `c` alone (but 0), or else the lowest of the
-    /// 256 codes whose Unicode is `c`.
+    /// 256 codes whose glyph name in the encoding is `c`'s (`ToUnicode`
+    /// aside, as `PDFium`'s `m_Encoding` is).
     pub(crate) fn char_code_for_unicode(&self, c: char) -> Option<u32> {
         self.to_unicode
             .as_ref()
             .and_then(|m| m.reverse_lookup_bf_char(c))
             .filter(|&code| code != 0)
             .or_else(|| {
-                (0..256).find(|&code| self.char_code_to_unicode(code) == Some(BfString::Char(c)))
+                (0..=255_u8)
+                    .find(|&code| self.encoding_unicode(code) == Some(c))
+                    .map(u32::from)
             })
     }
 }

@@ -409,14 +409,18 @@ impl Type0Font {
     }
 
     /// The character code `PDFium`'s text extraction would find for `c`
-    /// (`CPDF_Font::CharCodeFromUnicode`): the lowest code the `ToUnicode`
-    /// map gives `c` alone. (`None` for a CID-indexed map, whose keys are
-    /// CIDs, not codes.)
+    /// (`CPDF_CIDFont::CharCodeFromUnicode`): the lowest key the `ToUnicode`
+    /// map gives `c` alone (a CID, for a CID-indexed map, as `PDFium` takes
+    /// it), or else 0, which `PDFium` gives for an Identity `CMap` (it
+    /// tries the `CMap`'s character set for the predefined others). Never
+    /// `None`: for `PDFium`, any character is a CID font's.
     pub(crate) fn char_code_for_unicode(&self, c: char) -> Option<u32> {
-        if self.to_unicode_is_cid_indexed {
-            return None;
-        }
-        self.to_unicode.as_ref()?.reverse_lookup_bf_char(c)
+        Some(
+            self.to_unicode
+                .as_ref()
+                .and_then(|m| m.reverse_lookup_bf_char(c))
+                .unwrap_or(0),
+        )
     }
 }
 
