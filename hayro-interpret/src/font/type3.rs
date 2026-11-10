@@ -106,6 +106,11 @@ impl<'a> Type3<'a> {
             .and_then(|t| t.lookup_bf_string(char_code))
     }
 
+    /// The lowest code the `ToUnicode` map gives `c` alone.
+    pub(crate) fn char_code_for_unicode(&self, c: char) -> Option<u32> {
+        self.to_unicode.as_ref()?.reverse_lookup_bf_char(c)
+    }
+
     pub(crate) fn render_glyph(
         &self,
         glyph: &Type3Glyph<'a>,

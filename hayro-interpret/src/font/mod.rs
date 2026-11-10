@@ -105,12 +105,39 @@ impl Glyph<'_> {
             Glyph::Type3(g) => g.as_unicode(),
         }
     }
+
+    /// The character code the glyph was shown with.
+    pub fn char_code(&self) -> u32 {
+        match self {
+            Glyph::Outline(g) => g.char_code(),
+            Glyph::Type3(g) => g.char_code(),
+        }
+    }
+
+    /// The advance width the glyph's font gives any character code (see
+    /// [`OutlineGlyph::code_advance_width`]).
+    pub fn code_advance_width(&self, code: u32) -> Option<f32> {
+        match self {
+            Glyph::Outline(g) => g.code_advance_width(code),
+            Glyph::Type3(g) => Some(g.code_advance_width(code)),
+        }
+    }
+
+    /// The character code the glyph's font has for `c` (see
+    /// [`OutlineGlyph::char_code_for_unicode`]).
+    pub fn char_code_for_unicode(&self, c: char) -> Option<u32> {
+        match self {
+            Glyph::Outline(g) => g.char_code_for_unicode(c),
+            Glyph::Type3(g) => g.char_code_for_unicode(c),
+        }
+    }
 }
 
 /// A glyph and its position within a [`GlyphRun`].
 pub struct PositionedGlyph<'a> {
     pub(crate) glyph: Glyph<'a>,
     pub(crate) transform: Affine,
+    pub(crate) adjustment: f32,
 }
 
 impl PositionedGlyph<'_> {
@@ -118,6 +145,33 @@ impl PositionedGlyph<'_> {
     pub fn transform(&self) -> Affine {
         self.transform
     }
+
+    /// The `TJ` adjustments applied just before this glyph (summed, in
+    /// thousandths of a text space unit, as written: positive moves
+    /// back), 0 if none.
+    pub fn adjustment(&self) -> f32 {
+        self.adjustment
+    }
+}
+
+/// The text state a glyph run was shown with, as it was when the
+/// text-showing operator began (an operator can't change it, but for the
+/// text matrix, which its glyphs advance).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TextRunState {
+    /// The text matrix (`Tm`, as moved by `Td` and earlier glyphs) at the
+    /// start of the run, without the CTM.
+    pub text_matrix: Affine,
+    /// `Tf`'s size.
+    pub font_size: f32,
+    /// `Tc`.
+    pub char_spacing: f32,
+    /// `Tw`.
+    pub word_spacing: f32,
+    /// `Tz`, in percent.
+    pub horizontal_scaling: f32,
+    /// `Ts`.
+    pub rise: f32,
 }
 
 impl<'a> Deref for PositionedGlyph<'a> {
@@ -131,12 +185,18 @@ impl<'a> Deref for PositionedGlyph<'a> {
 /// A fully materialized run of positioned glyphs.
 pub struct GlyphRun<'run, 'a> {
     pub(crate) glyphs: &'run [PositionedGlyph<'a>],
+    pub(crate) state: TextRunState,
 }
 
 impl<'run, 'a> GlyphRun<'run, 'a> {
     /// Return the glyphs in the run.
     pub fn glyphs(&self) -> &'run [PositionedGlyph<'a>] {
         self.glyphs
+    }
+
+    /// The text state the run was shown with.
+    pub fn text_state(&self) -> &TextRunState {
+        &self.state
     }
 }
 
@@ -234,6 +294,25 @@ impl OutlineGlyph {
     pub fn postscript_name(&self) -> Option<&str> {
         self.font.postscript_name()
     }
+
+    /// The character code the glyph was shown with.
+    pub fn char_code(&self) -> u32 {
+        self.char_code
+    }
+
+    /// The advance width the glyph's font gives any character code, in
+    /// the units of [`OutlineGlyph::advance_width`] (the PDF's `/Widths` or
+    /// `/W` where it has them).
+    pub fn code_advance_width(&self, code: u32) -> Option<f32> {
+        self.font.glyph_advance_width(code)
+    }
+
+    /// The character code the glyph's font has for `c`, as `PDFium`'s text
+    /// extraction finds it: from the `ToUnicode` map (the lowest code it
+    /// gives `c` alone), or, for a simple font, its encoding.
+    pub fn char_code_for_unicode(&self, c: char) -> Option<u32> {
+        self.font.char_code_for_unicode(c)
+    }
 }
 
 /// A type3 glyph.
@@ -290,6 +369,22 @@ impl<'a> Type3Glyph<'a> {
     /// units-per-em`).
     pub fn advance_width(&self) -> f32 {
         self.font.glyph_width(self.char_code as u8)
+    }
+
+    /// The character code the glyph was shown with.
+    pub fn char_code(&self) -> u32 {
+        self.char_code
+    }
+
+    /// The advance width the glyph's font gives any (one-byte) character
+    /// code, in the units of [`Type3Glyph::advance_width`].
+    pub fn code_advance_width(&self, code: u32) -> f32 {
+        self.font.glyph_width(code as u8)
+    }
+
+    /// The lowest code the font's `ToUnicode` map gives `c` alone.
+    pub fn char_code_for_unicode(&self, c: char) -> Option<u32> {
+        self.font.char_code_for_unicode(c)
     }
 
     /// Get the font's `/FontMatrix`.

@@ -143,6 +143,14 @@ impl OutlineFont {
         }
     }
 
+    pub(crate) fn char_code_for_unicode(&self, c: char) -> Option<u32> {
+        match self {
+            Self::Type1(t) => t.char_code_for_unicode(c),
+            Self::TrueType(t) => t.char_code_for_unicode(c),
+            Self::Type0(t) => t.char_code_for_unicode(c),
+        }
+    }
+
     /// Get the advance width for a glyph by character code.
     pub(crate) fn glyph_advance_width(&self, char_code: u32) -> Option<f32> {
         match self {

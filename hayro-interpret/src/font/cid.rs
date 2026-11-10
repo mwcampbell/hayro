@@ -407,6 +407,17 @@ impl Type0Font {
 
         None
     }
+
+    /// The character code `PDFium`'s text extraction would find for `c`
+    /// (`CPDF_Font::CharCodeFromUnicode`): the lowest code the `ToUnicode`
+    /// map gives `c` alone. (`None` for a CID-indexed map, whose keys are
+    /// CIDs, not codes.)
+    pub(crate) fn char_code_for_unicode(&self, c: char) -> Option<u32> {
+        if self.to_unicode_is_cid_indexed {
+            return None;
+        }
+        self.to_unicode.as_ref()?.reverse_lookup_bf_char(c)
+    }
 }
 
 impl CacheKey for Type0Font {
